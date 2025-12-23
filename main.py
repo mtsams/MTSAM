@@ -51,35 +51,25 @@ parser.add_argument('--dataset', default='UCSF-PDGM', type=str)
 parser.add_argument('--model_name', default='UCSF', type=str)
 
 # Training Information
-parser.add_argument('--lr', default=0.00002, type=float)
+parser.add_argument('--lr', default=, type=float)
 
-parser.add_argument('--weight_decay', default=1e-5, type=float)
+parser.add_argument('--weight_decay', default=, type=float)
 
 parser.add_argument('--amsgrad', default=True, type=bool)
 
-parser.add_argument('--criterion', default='softmax_dice', type=str)
-
-parser.add_argument('--num_class', default=1, type=int)
-
-parser.add_argument('--seed', default=1000, type=int)
-
 parser.add_argument('--no_cuda', default=False, type=bool)
 
-parser.add_argument('--gpu', default='0', type=str)
+parser.add_argument('--gpu', default='', type=str)
 
-parser.add_argument('--num_workers', default=8, type=int)
+parser.add_argument('--num_workers', default=, type=int)
 
-parser.add_argument('--batch_size', default=4, type=int)
+parser.add_argument('--batch_size', default=, type=int)
 
 parser.add_argument('--start_epoch', default=0, type=int)
 
 parser.add_argument('--end_epoch', default=2000, type=int)
 
 parser.add_argument('--resume', default='', type=str)
-
-parser.add_argument('--load', default=True, type=bool)
-
-parser.add_argument('--point_method', default='default', type=str)
 
 parser.add_argument('--crop_size', type=int, default=128)
 
@@ -91,17 +81,7 @@ click_methods = {
     'ritm': get_next_click3D_torch_2,
     'random': get_next_click3D_torch_2,
 }
-def CoxLoss(hazard_pred,survtime, censor):
-    current_batch_len = len(survtime)
-    R_mat = np.zeros([current_batch_len, current_batch_len], dtype=int)
-    for i in range(current_batch_len):
-        for j in range(current_batch_len):
-            R_mat[i,j] = survtime[j] >= survtime[i]
-    R_mat = torch.FloatTensor(R_mat).to(censor.device)#censor.device
-    theta = hazard_pred.reshape(-1)
-    exp_theta = torch.exp(theta)
-    loss_cox = -torch.mean((theta - torch.log(torch.sum(exp_theta*R_mat, dim=1))) * censor)
-    return loss_cox
+
 def R_set(x):
     '''Create an indicator matrix of risk sets, where T_j >= T_i.
     Note that the input data have been sorted in descending order.
@@ -115,22 +95,7 @@ def R_set(x):
     indicator_matrix = torch.tril(matrix_ones)
 
     return (indicator_matrix)
-def compute_iou(pred_mask, gt_semantic_seg):
-    in_mask = np.logical_and(gt_semantic_seg, pred_mask)
-    out_mask = np.logical_or(gt_semantic_seg, pred_mask)
-    iou = np.sum(in_mask) / np.sum(out_mask)
-    return iou
-
-def compute_dice(mask_gt, mask_pred):
-    """Compute soerensen-dice coefficient.
-    Returns:
-    the dice coeffcient as float. If both masks are empty, the result is NaN
-    """
-    volume_sum = mask_gt.sum() + mask_pred.sum()
-    if volume_sum == 0:
-        return np.NaN
-    volume_intersect = (mask_gt & mask_pred).sum()
-    return 2*volume_intersect / volume_sum
+  
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
@@ -145,43 +110,6 @@ def setup_seed(seed):
 
 # 设置随机数种子
 
-def c_index(pred, ytime, yevent):
-    '''Calculate concordance index to evaluate models.
-    Input:
-        pred: linear predictors from trained model.
-        ytime: true survival time from load_data().
-        yevent: true censoring status from load_data().
-    Output:
-        concordance_index: c-index (between 0 and 1).
-    '''
-    n_sample = len(ytime)
-    ytime_indicator = R_set(ytime)
-    ytime_matrix = ytime_indicator - torch.diag(torch.diag(ytime_indicator))
-    ###T_i is uncensored
-    censor_idx = (yevent == 0).nonzero()
-    zeros = torch.zeros(n_sample)
-    ytime_matrix[censor_idx, :] = zeros
-    ###1 if pred_i < pred_j; 0.5 if pred_i = pred_j
-    pred_matrix = torch.zeros_like(ytime_matrix)
-    for j in range(n_sample):
-        for i in range(n_sample):
-            if pred[i] < pred[j]:
-                pred_matrix[j, i] = 1
-            elif pred[i] == pred[j]:
-                pred_matrix[j, i] = 0.5
-
-    concord_matrix = pred_matrix.mul(ytime_matrix)
-    ###numerator
-    concord = torch.sum(concord_matrix)
-    ###denominator
-    epsilon = torch.sum(ytime_matrix)
-    ###c-index = numerator/denominator
-    concordance_index = torch.div(concord, epsilon)
-    ###if gpu is being used
-    if torch.cuda.is_available():
-        concordance_index = concordance_index.cuda()
-    ###
-    return concordance_index
 def get_points(prev_masks, gt3D, click_points, click_labels):
     batch_points, batch_labels = click_methods['default'](prev_masks, gt3D)
 
@@ -217,39 +145,6 @@ def batch_forward(sam_model, image_embedding, gt3D, low_res_masks, points=None):
     prev_masks = F.interpolate(low_res_masks, size=gt3D.shape[-3:], mode='trilinear', align_corners=False)
     return low_res_masks, prev_masks
 
-
-def get_iou_score(prev_masks, gt3D):
-    def compute_iou(mask_pred, mask_gt):
-        in_mask = np.logical_and(mask_gt, mask_pred)
-        out_mask = np.logical_or(mask_gt, mask_pred)
-        iou = np.sum(in_mask) / np.sum(out_mask)
-        return iou
-
-    pred_masks = (prev_masks > 0.5).cpu().numpy()  # Assuming tensor, convert to boolean numpy array
-    true_masks = (gt3D > 0).cpu().numpy()          # Assuming tensor, convert to boolean numpy array
-    iou_list = []
-    for i in range(true_masks.shape[0]):
-        iou_list.append(compute_iou(pred_masks[i], true_masks[i]))
-    return sum(iou_list) / len(iou_list)
-def get_dice_score(prev_masks, gt3D):
-    def compute_dice(mask_pred, mask_gt):
-        mask_threshold = 0.5
-
-        mask_pred = (mask_pred > mask_threshold)
-        mask_gt = (mask_gt > 0)
-
-        volume_sum = mask_gt.sum() + mask_pred.sum()
-        if volume_sum == 0:
-            return np.NaN
-        volume_intersect = (mask_gt & mask_pred).sum()
-        return 2 * volume_intersect / volume_sum
-
-    pred_masks = (prev_masks > 0.5)
-    true_masks = (gt3D > 0)
-    dice_list = []
-    for i in range(true_masks.shape[0]):
-        dice_list.append(compute_dice(pred_masks[i], true_masks[i]))
-    return (sum(dice_list) / len(dice_list)).item()
 def finetune_model_predict3D(img3D, gt3D, sam_model_tune, num_clicks=10
                              ,click_points=None,click_labels=None):
 
@@ -617,102 +512,6 @@ class FocalLoss(nn.Module):
             return focal_loss.sum()
         else:
             return focal_loss
-from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score, f1_score,accuracy_score
-from sklearn.utils import resample
-import numpy as np
-def evalution_metirc_boostrap(y_true, y_pred_score, y_pred, labels, target_names):
-    y_true = np.array(y_true)
-    y_pred_score = np.array(y_pred_score)
-    y_pred = np.array(y_pred)
-    print(classification_report(y_true, y_pred, labels=labels, target_names=target_names))
-
-    auc_ = roc_auc_score(y_true, y_pred_score)
-    confusion = confusion_matrix(y_true, y_pred)
-    print(confusion)
-
-    accuracy_ = float(confusion[0, 0] + confusion[1, 1]) / float(np.sum(confusion))
-    specificity_ = float(confusion[0, 0]) / float(confusion[0, 0] + confusion[0, 1])
-    sensitivity_ = float(confusion[1, 1]) / float(confusion[1, 1] + confusion[1, 0])
-    F1_score_ = f1_score(y_true, y_pred, labels=labels, pos_label=1)
-
-    n_bootstraps = 1000
-    rng_seed = 42  # control reproducibility
-    bootstrapped_AUC = []
-    bootstrapped_ACC = []
-    bootstrapped_SEN = []
-    bootstrapped_SPE = []
-    bootstrapped_F1 = []
-    rng = np.random.RandomState(rng_seed)
-
-    for i in range(n_bootstraps):
-        indices = rng.randint(0, len(y_pred_score), len(y_pred_score))
-        if len(np.unique(y_true[indices.astype(int)])) < 2:
-            # We need at least one positive and one negative sample for ROC AUC to be defined: reject the sample
-            continue
-        auc = roc_auc_score(y_true[indices], y_pred_score[indices])
-        bootstrapped_AUC.append(auc)
-
-        confusion = confusion_matrix(y_true[indices], y_pred[indices])
-        accuracy = float(confusion[0, 0] + confusion[1, 1]) / float(np.sum(confusion))
-        specificity = float(confusion[0, 0]) / float(confusion[0, 0] + confusion[0, 1])
-        sensitivity = float(confusion[1, 1]) / float(confusion[1, 1] + confusion[1, 0])
-        F1_score = f1_score(y_true[indices], y_pred[indices], labels=labels, pos_label=1)
-
-        bootstrapped_ACC.append(accuracy)
-        bootstrapped_SPE.append(specificity)
-        bootstrapped_SEN.append(sensitivity)
-        bootstrapped_F1.append(F1_score)
-
-    sorted_AUC = np.array(bootstrapped_AUC)
-    sorted_AUC.sort()
-    sorted_ACC = np.array(bootstrapped_ACC)
-    sorted_ACC.sort()
-    sorted_SPE = np.array(bootstrapped_SPE)
-    sorted_SPE.sort()
-    sorted_SEN = np.array(bootstrapped_SEN)
-    sorted_SEN.sort()
-    sorted_F1 = np.array(bootstrapped_F1)
-    sorted_F1.sort()
-
-    results = {
-        'AUC': (auc_, sorted_AUC[int(0.05 * len(sorted_AUC))], sorted_AUC[int(0.95 * len(sorted_AUC))]),
-        'Accuracy': (accuracy_, sorted_ACC[int(0.05 * len(sorted_ACC))], sorted_ACC[int(0.95 * len(sorted_ACC))]),
-        'Specificity': (specificity_, sorted_SPE[int(0.05 * len(sorted_SPE))], sorted_SPE[int(0.95 * len(sorted_SPE))]),
-        'Sensitivity': (sensitivity_, sorted_SEN[int(0.05 * len(sorted_SEN))], sorted_SEN[int(0.95 * len(sorted_SEN))]),
-        'F1_score': (F1_score_, sorted_F1[int(0.05 * len(sorted_F1))], sorted_F1[int(0.95 * len(sorted_F1))])
-    }
-
-    print("Confidence interval for the AUC: {:0.4f} [{:0.4f} - {:0.4f}]".format(*results['AUC']))
-    print("Confidence interval for the Accuracy: {:0.4f} [{:0.4f} - {:0.4f}]".format(*results['Accuracy']))
-    print("Confidence interval for the Specificity: {:0.4f} [{:0.4f} - {:0.4f}]".format(*results['Specificity']))
-    print("Confidence interval for the Sensitivity: {:0.4f} [{:0.4f} - {:0.4f}]".format(*results['Sensitivity']))
-    print("Confidence interval for the F1_score: {:0.4f} [{:0.4f} - {:0.4f}]".format(*results['F1_score']))
-
-    return results
-
-
-def log_args(log_file):
-
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        '%(asctime)s ===> %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S')
-
-    # args FileHandler to save log file
-    fh = logging.FileHandler(log_file)
-    fh.setLevel(logging.DEBUG)
-    fh.setFormatter(formatter)
-
-    # args StreamHandler to print log to console
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    ch.setFormatter(formatter)
-
-    # add the two Handler
-    logger.addHandler(ch)
-    logger.addHandler(fh)
-
 
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
