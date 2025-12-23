@@ -34,7 +34,7 @@ parser.add_argument('--description',
                     type=str)
 
 # DataSet Information
-parser.add_argument('--root', default='/home/lixinyu/UCSF_MTSAM', type=str)
+parser.add_argument('--root', default='', type=str)
 
 parser.add_argument('--train_dir', default='train', type=str)
 
@@ -47,8 +47,6 @@ parser.add_argument('--train_file', default='train.txt', type=str)
 parser.add_argument('--valid_file', default='val.txt', type=str)
 
 parser.add_argument('--dataset', default='UCSF-PDGM', type=str)
-
-parser.add_argument('--model_name', default='UCSF', type=str)
 
 # Training Information
 parser.add_argument('--lr', default=, type=float)
@@ -458,40 +456,6 @@ def main_worker():
             else:
                 epochs_no_improve += 1
                 print(f"❌ 平均AUC未提升（当前：{current_avg_auc:.4f}，最高：{best_avg_auc:.4f}）")
-
-
-def _extract_metric_triplet(res_dict, key_aliases):
-    """
-    从结果字典里取 metric。支持不同命名别名；返回 (mean, low, high)，若无 CI 则 low/high 为 None。
-    兼容:
-      - res_dict['Accuracy'] = [mean, low, high]
-      - res_dict['Accuracy'] = (mean, low, high)
-      - res_dict['Accuracy'] = mean
-    """
-    for k in key_aliases:
-        if k in res_dict:
-            v = res_dict[k]
-            if isinstance(v, (list, tuple)):
-                if len(v) >= 3:
-                    return float(v[0]), float(v[1]), float(v[2])
-                elif len(v) == 2:
-                    return float(v[0]), float(v[1]), None
-                elif len(v) == 1:
-                    return float(v[0]), None, None
-            try:
-                return float(v), None, None
-            except Exception:
-                pass
-    return None, None, None
-
-def _format_line(name, triplet):
-    mean, lo, hi = triplet
-    if mean is None:
-        return f"{name}: N/A\n"
-    if lo is None or hi is None:
-        return f"{name}: {mean:.4f}\n"
-    return f"{name}: {mean:.4f} (95% CI {lo:.4f}–{hi:.4f})\n"
-
 
 class FocalLoss(nn.Module):
     def __init__(self, alpha=1, gamma=2, weight=None, reduction='mean'):
