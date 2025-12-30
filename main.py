@@ -433,7 +433,6 @@ def main_worker():
             print(
                 f"当前验证集IDH AUC: {current_idh_auc:.4f}, Grade AUC: {current_grade_auc:.4f}, 平均AUC: {current_avg_auc:.4f}")
 
-            # 核心修改5：当平均AUC为历史最高时保存模型
             if current_avg_auc > best_avg_auc:
                 best_avg_auc = current_avg_auc  # 更新最佳平均AUC
                 epochs_no_improve = 0  # 重置无提升计数器
