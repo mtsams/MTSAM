@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 
 class MTC3(nn.Module):
-    def __init__(self, intc=8, outc=8, dropout_prob=0.1):
+    def __init__(self, intc, outc, dropout_prob=0.1):
         super(MTC3, self).__init__()
 
         # 第一层卷积：3x3x3，padding=1，dilation=1
@@ -46,7 +46,7 @@ class MTC3(nn.Module):
         return x
 
 class MTC5(nn.Module):
-    def __init__(self, intc=8, outc=8, dropout_prob=0.1):
+    def __init__(self, intc, outc, dropout_prob=0.1):
         super(MTC5, self).__init__()
         # 重新计算填充值以保持分辨率不变
         padding = (3 * (5 - 1)) // 2
@@ -90,7 +90,7 @@ class MTC5(nn.Module):
 
 
 class MTC7(nn.Module):
-    def __init__(self, intc=8, outc=8, dropout_prob=0.1):
+    def __init__(self, intc, outc, dropout_prob=0.1):
         super(MTC7, self).__init__()
 
         # 第一个 7x7x7 扩张卷积层，用于捕获更大的上下文信息，dilation=3
