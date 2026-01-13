@@ -273,7 +273,7 @@ class MVadpter(nn.Module):
         self.b = nn.BatchNorm3d(intc // 8)
 
         self.drop = nn.Dropout(0.1)
-        self.fc_y = nn.Linear(103, intc // 8)
+        self.fc_y = nn.Linear(101, intc // 8)
         self.fc_x= nn.Linear(intc, intc // 8)
         self.bilinear=nn.Bilinear(intc//8, intc // 8, intc//8)
         self.relu = nn.LeakyReLU()
