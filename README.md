@@ -1,6 +1,6 @@
 Overview：
 
-MTSAM is a novel glioma diagnosis framework that leverages a customized SAM-Med3D model. It fine-tunes large models using multi-view information to simultaneously perform IDH typing and grading of gliomas. This framework effectively integrates multimodal MRI, handcrafted radiomics (HCR), and clinical features to improve prognostic accuracy, outperforming several glioma diagnosis methods.
+MTSAM is a novel glioma diagnosis framework that leverages a customized SAM-Med3D model. It fine-tunes large models using multi-view information to simultaneously perform IDH typing and grading of gliomas. This framework effectively integrates multimodal MRI, handcrafted radiomics (HCR), and clinical features to improve glioma diagonosis, outperforming several glioma diagnosis methods.
 
 Gliomas are the most common malignant brain tumors in adults, and accurate survival risk prediction is crucial for personalized treatment. Although molecular biomarkers have prognostic value, their invasive and costly nature limits their widespread application. MTSAM addresses this issue by utilizing non-invasive MRI data, HCR, and clinical features, combined with advanced deep learning techniques, to achieve robust diagnosis.
 Key Contributions：
