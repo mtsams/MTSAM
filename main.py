@@ -184,7 +184,7 @@ def main_worker():
     setup_seed(1000)
     torch.cuda.set_device(args.local_rank)
     sam_model_tune = sam_model_registry3D["vit_b_ori"](checkpoint=None)
-    model_dict = torch.load('/home/lixinyu/fenkai/sam_med3d.pth')
+    model_dict = torch.load('/sam_med3d.pth')
     state_dict = model_dict['model_state_dict']
 
     original_weight = state_dict['image_encoder.patch_embed.proj.weight']
@@ -256,7 +256,7 @@ def main_worker():
     es=0
     torch.cuda.empty_cache()
     epochs_no_improve = 0
-    labels = [0, 1]  # 假设是二分类问题
+    labels = [0, 1] 
     idh_names = ['IDH野生型', 'IDH突变型']
     grade_names = ['LGG', 'HGG']
     best_avg_auc = 0.0
@@ -449,7 +449,7 @@ def main_worker():
                         'idh': nets['idh'].state_dict(),
                         'grade': nets['grade'].state_dict(),
                         'mtl': nets['mtl'].state_dict(),
-                        'optimizer': optimizer.state_dict(),  # 保存优化器状态，方便续训
+                        'optimizer': optimizer.state_dict(),  
                     }, model_path)
                     print(f"✅ 平均AUC刷新至{best_avg_auc:.4f}，模型已保存至 {model_path}")
             else:
