@@ -45,8 +45,6 @@ Training
 
 To train MTSAM on the UCSF-PDGM dataset:
 
-python main.py --dataset ucsf-pdgm
+python main.py --dataset ucsf-pdgm --mode train
 
-To train on the BraTS2020 dataset:
 
-python main.py --dataset brats2020
