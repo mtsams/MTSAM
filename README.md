@@ -39,8 +39,6 @@ Data Preparation
 
 Download the UCSF-PDGM or BraTS2020 dataset from the provided links.
 
-Ensure the dataset includes multimodal MRI scans, handcrafted radiomics features, and clinical features (e.g., age, gender).
-
 Training
 
 To train MTSAM on the UCSF-PDGM dataset:
